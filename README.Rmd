@@ -87,8 +87,8 @@ plot( b_mod1)
 
 b_mod1 %>% 
   spread_draws(`b_.*`,regex = TRUE) %>% 
-  mutate(or=exp(b_trt)) %>% 
-  median_hdci(or) %>% 
+  mutate(hr=exp(b_trt)) %>% 
+  median_hdci(hr) %>% 
   knitr::kable(digits = 2)
 
 
