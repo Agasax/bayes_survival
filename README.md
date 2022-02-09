@@ -100,7 +100,25 @@ b_mod1 <- brm(formula = b_mod1_formula,
               control = list(adapt_delta=0.99),
               file = here("fits","b_mod1"), 
               file_refit = "on_change") # refits and resaves model if formula, priors or data are changed
+
+b_mod1
 ```
+
+    ##  Family: cox 
+    ##   Links: mu = log 
+    ## Formula: eventtime | cens(1 - status) ~ 1 + trt 
+    ##    Data: df (Number of observations: 2000) 
+    ##   Draws: 4 chains, each with iter = 2000; warmup = 1000; thin = 1;
+    ##          total post-warmup draws = 4000
+    ## 
+    ## Population-Level Effects: 
+    ##           Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+    ## Intercept     0.11      0.04     0.03     0.20 1.00     2872     2484
+    ## trt          -0.39      0.06    -0.50    -0.27 1.00     2661     2400
+    ## 
+    ## Draws were sampled using sampling(NUTS). For each parameter, Bulk_ESS
+    ## and Tail_ESS are effective sample size measures, and Rhat is the potential
+    ## scale reduction factor on split chains (at convergence, Rhat = 1).
 
 ``` r
 plot( b_mod1)

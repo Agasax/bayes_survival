@@ -77,6 +77,8 @@ b_mod1 <- brm(formula = b_mod1_formula,
               control = list(adapt_delta=0.99),
               file = here("fits","b_mod1"), 
               file_refit = "on_change") # refits and resaves model if formula, priors or data are changed
+
+b_mod1
 ```
 
 ```{r summarise_brms_model}
