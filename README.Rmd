@@ -1,0 +1,164 @@
+---
+title: "Bayesian survival analysis"
+output: github_document
+author: "Lars Mølgaard Saxhaug"
+---
+
+```{r setup, include=TRUE,message = FALSE,warning = FALSE}
+knitr::opts_chunk$set(echo = TRUE,message = FALSE,warning = FALSE)
+
+
+library(tidyverse)
+library(brms)
+library(survival)
+library(simsurv)
+library(tidybayes)
+library(here)
+```
+
+#### Data simulation
+
+```{r data_simulation}
+df <- if (file.exists(here("data","df.rds"))) {
+  readRDS(here("data","df.rds"))
+} else {
+  
+n <- 2000
+covs <- data.frame(id  = 1:n, trt = stats::rbinom(n, 1L, 0.5))
+df <- simsurv(lambdas = 0.1,
+              gammas  = 1.5,
+              betas   = c(trt = -0.5),
+              x       = covs,
+              maxt    = 5)
+df <- merge(df, covs)
+
+saveRDS(df,here("data","df.rds"))
+
+df
+}
+
+```
+
+#### Frequentist Cox proportional-hazards model 
+
+```{r frequentist}
+
+
+summary(coxph(Surv(eventtime,status)~1+trt,df))
+```
+
+#### Bayesian Cox proportional-hazards model using {brms}
+
+#### Model specification and prior distribution for treatment effect
+
+```{r brms_model_specification}
+b_mod1_formula <- eventtime|cens(1-status)~1+trt # formula
+
+
+get_prior(b_mod1_formula,df) # review all priors (at their defaults)
+
+b_mod1_prior <-  prior(normal(0,1.5),class="b")
+
+b_mod1_prior %>% 
+  parse_dist() %>% # converts prior to data frame ready for plotting using {ggdist}
+  ggplot(aes(y=prior,dist=.dist,args=.args))+
+  stat_dist_halfeye()+
+  theme_tidybayes()+
+  scale_x_continuous(name = "")
+```
+
+#### {Brms} model fitting
+
+```{r model_fitting}
+b_mod1 <- brm(formula = b_mod1_formula,
+              prior=b_mod1_prior,
+              family = brmsfamily("cox"),
+              data = df,
+              control = list(adapt_delta=0.99),
+              file = here("fits","b_mod1"), 
+              file_refit = "on_change") # refits and resaves model if formula, priors or data are changed
+```
+
+```{r summarise_brms_model}
+
+plot( b_mod1)
+
+b_mod1 %>% 
+  spread_draws(`b_.*`,regex = TRUE) %>% 
+  mutate(or=exp(b_trt)) %>% 
+  median_hdci(or) %>% 
+  knitr::kable(digits = 2)
+
+
+```
+
+#### Exponential model using {rstanarm}
+
+```{r exponential_rstanarm}
+library(rstanarm)
+stan_surv_exponential <- if (file.exists(here("fits","stan_surv_exponential.rds"))) {
+  readRDS(here("fits","stan_surv_exponential.rds")) } else
+  {
+  
+
+stan_surv_exponential <- stan_surv(formula = Surv(eventtime, status) ~ trt,
+                                   prior = normal(0,1.5),
+                                   prior_intercept = normal(0,1.5),
+                                   data = df,
+                                   basehaz = "exp")
+saveRDS(stan_surv_exponential,file=here("fits","stan_surv_exponential.rds"))
+stan_surv_exponential
+}
+
+
+summary(stan_surv_exponential)
+
+prior_summary(stan_surv_exponential) 
+
+nd <- modelr::data_grid(df,trt) # new data for posterior predictions
+
+posterior_survfit(stan_surv_exponential,newdata=nd, type="surv") %>% 
+  mutate(trt=as.factor(id-1)) %>% 
+  ggplot(aes(x=time,y=median,ymin=ci_lb,ymax=ci_ub,fill=trt,colour=trt))+
+  geom_ribbon(alpha=0.3)+
+  geom_line()+
+  theme_tidybayes()+
+  scale_y_continuous(name = "Survival")
+```
+
+####  Weibull model using {rstanarm}
+
+```{r weibull_rstanarm}
+stan_surv_weibull <- if (file.exists(here("fits","stan_surv_weibull.rds"))) {
+  readRDS(here("fits","stan_surv_weibull.rds")) } else
+  {
+  
+
+stan_surv_weibull <- stan_surv(formula = Surv(eventtime, status) ~ trt,
+                                   prior = normal(0,1.5),
+                                   prior_intercept = normal(0,1.5),
+                                   data = df,
+                                   basehaz = "weibull")
+saveRDS(stan_surv_exponential,file=here("fits","stan_surv_weibull.rds"))
+stan_surv_weibull
+
+}
+
+stan_surv_weibull
+
+stan_surv_weibull %>% 
+  prior_summary()
+
+nd <- modelr::data_grid(df,trt)
+
+
+posterior_survfit(stan_surv_weibull,newdata=nd, type="surv") %>% 
+  mutate(trt=as.factor(id-1)) %>% 
+  ggplot(aes(x=time,y=median,ymin=ci_lb,ymax=ci_ub,fill=trt,colour=trt))+
+  geom_ribbon(alpha=0.3)+
+  geom_line()+
+  theme_tidybayes()+
+  scale_y_continuous(name = "Survival")
+```
+
+
