@@ -7,7 +7,10 @@ knitr::opts_chunk$set(echo = TRUE,message = FALSE,warning = FALSE)
 
 
 library(tidyverse)
+# devtools::install_github("paul-buerkner/brms", build_vignettes = FALSE) for the cox model
 library(brms)
+#devtools::install_github("stan-dev/rstanarm", ref = "feature/survival", build_vignettes = FALSE) to install the survival branch
+library(rstanarm)
 library(survival)
 library(simsurv)
 library(tidybayes)
@@ -141,7 +144,6 @@ b_mod1 %>%
 #### Exponential model using {rstanarm}
 
 ``` r
-library(rstanarm)
 stan_surv_exponential <- if (file.exists(here("fits","stan_surv_exponential.rds"))) {
   readRDS(here("fits","stan_surv_exponential.rds")) } else
   {
